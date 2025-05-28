@@ -7,12 +7,22 @@ import nodriver as uc
 from fastapi import HTTPException
 from httpx import codes
 
-from src.consts import LOG_LEVEL, PROXY, USE_HEADLESS
+from src.consts import LOG_LEVEL, PROXY, USE_HEADLESS, USE_XVFB
 
 logger = logging.getLogger("uvicorn.error")
 logger.setLevel(LOG_LEVEL)
 if len(logger.handlers) == 0:
     logger.addHandler(logging.StreamHandler())
+
+# Configure nodriver logging
+nodriver_logger = logging.getLogger("nodriver")
+nodriver_logger.setLevel(LOG_LEVEL)
+if len(nodriver_logger.handlers) == 0:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    nodriver_logger.addHandler(handler)
+
+# Root logger is now configured in main.py
 
 
 @asynccontextmanager
@@ -35,16 +45,19 @@ async def get_browser(proxy: Optional[str] = None):
     if proxy:
         browser_args = [f"--proxy-server={proxy}"]
 
+    logger.debug(f"Starting browser with headless={USE_HEADLESS} (GUI {'disabled' if USE_HEADLESS else 'enabled'}), xvfb={USE_XVFB}, proxy={proxy}")
     browser = await uc.start(
         headless=USE_HEADLESS,
         lang="en-US",
         sandbox=False,  # Required when running as root (Docker)
         browser_args=browser_args,
     )
+    logger.debug("Browser started successfully")
 
     try:
         yield browser
     finally:
+        logger.debug("Stopping browser")
         browser.stop()
 
 

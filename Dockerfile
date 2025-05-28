@@ -1,4 +1,4 @@
-FROM debian:bookworm-slim AS base
+FROM debian:bookworm AS base
 ENV HOME=/root
 
 ARG GITHUB_BUILD=false \
@@ -16,7 +16,7 @@ ENV GITHUB_BUILD=${GITHUB_BUILD}\
 WORKDIR /app
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends --no-install-suggests xauth xvfb scrot curl chromium chromium-driver ca-certificates
+    apt-get install -y --no-install-recommends --no-install-suggests xauth xvfb scrot curl chromium chromium-driver ca-certificates libglib2.0-0 libsm6 libxext6 libxrender-dev libgomp1
 
 ADD https://astral.sh/uv/install.sh install.sh
 RUN sh install.sh && uv --version
@@ -35,12 +35,14 @@ RUN --mount=type=cache,target=${HOME}/.cache/uv uv sync
 # Copy application files
 COPY . .
 
+# Make entrypoint script executable
+RUN chmod +x /app/entrypoint.sh
 
 FROM app AS test
-RUN --mount=type=cache,target=${HOME}/.cache/uv uv sync --group test
+RUN uv sync --group test
 RUN ./test.sh
 
 FROM app
 EXPOSE 8191
 HEALTHCHECK --interval=15m --timeout=30s --start-period=5s --retries=3 CMD [ "curl", "http://localhost:8191/health" ]
-ENTRYPOINT ["uv", "run", "main.py"]
+ENTRYPOINT ["/bin/bash", "/app/entrypoint.sh"]

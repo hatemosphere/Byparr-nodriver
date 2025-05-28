@@ -63,10 +63,15 @@ The `/v1` endpoint accepts POST requests with URLs to bypass, uses nodriver to n
 ## Key Technical Details
 
 - Uses nodriver's undetected Chrome mode to avoid bot detection
-- Built-in Cloudflare bypass with `tab.cf_verify()` method
+- Built-in Cloudflare bypass with `tab.verify_cf()` method (requires opencv-python, works when NOT in expert mode, currently English only)
 - Supports HTTP/HTTPS/SOCKS5 proxies (Note: SOCKS5 with authentication not supported at browser args level, would need context-level proxy config)
 - Saves screenshots on failure to `/tmp/screenshots/` for debugging
-- Environment variables: USE_HEADLESS, PROXY, LOG_LEVEL, VERSION
+- Environment variables:
+  - USE_HEADLESS: Set to "true" or "1" to run Chrome in headless mode (default: false)
+  - USE_XVFB: Set to "true" or "1" to use Xvfb virtual display in Docker for non-headless mode
+  - PROXY: HTTP/HTTPS/SOCKS5 proxy URL
+  - LOG_LEVEL: Logging level (DEBUG, INFO, WARNING, ERROR)
+  - VERSION: Application version
 - FlareSolverr API compatibility for easy migration
 - Requires `--shm-size=2gb` in Docker to prevent Chrome crashes
 - All endpoints are now async for better performance

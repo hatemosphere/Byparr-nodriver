@@ -1,3 +1,4 @@
+import asyncio
 import time
 from http import HTTPStatus
 from typing import Optional
@@ -56,25 +57,38 @@ async def _process_request(browser: uc.Browser, request: LinkRequest, start_time
     """Process the actual request with the browser."""
     tab = await browser.get(request.url)
     logger.debug(f"Got webpage: {request.url}")
+    
+    # Wait a bit for page to load
+    logger.debug("Waiting 3 seconds for initial page load...")
+    await asyncio.sleep(3)
 
     # Get page content
     content = await tab.get_content()
     soup = BeautifulSoup(content, 'html.parser')
     title_tag = soup.title
+    initial_title = title_tag.string if title_tag else "No title"
+    logger.debug(f"Initial page title: {initial_title}")
 
     if title_tag and title_tag.string in CHALLENGE_TITLES:
-        logger.debug("Challenge detected")
+        logger.info(f"Challenge detected with title: {title_tag.string}")
         # Use nodriver's built-in Cloudflare bypass
-        await tab.cf_verify()
-        logger.info("Cloudflare bypass completed")
+        logger.debug("Calling tab.verify_cf()...")
+        await tab.verify_cf()
+        logger.info("Cloudflare bypass initiated")
+        
+        # Wait for redirect/page load after challenge
+        logger.debug("Waiting 5 seconds for redirect/page load after challenge...")
+        await asyncio.sleep(5)
 
         # Refresh content after bypass
         content = await tab.get_content()
         soup = BeautifulSoup(content, 'html.parser')
 
     # Check if challenge still exists
-    current_title = await tab.title
+    current_title = await tab.evaluate("document.title")
+    logger.debug(f"Current page title after bypass attempt: {current_title}")
     if current_title in CHALLENGE_TITLES:
+        logger.error(f"Challenge still present after bypass attempt. Title: {current_title}")
         await save_screenshot(tab)
         raise HTTPException(status_code=500, detail="Could not bypass challenge")
 
