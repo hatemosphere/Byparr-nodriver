@@ -57,7 +57,7 @@ async def _process_request(browser: uc.Browser, request: LinkRequest, start_time
     """Process the actual request with the browser."""
     tab = await browser.get(request.url)
     logger.debug(f"Got webpage: {request.url}")
-    
+
     # Wait a bit for page to load
     logger.debug("Waiting 3 seconds for initial page load...")
     await asyncio.sleep(3)
@@ -75,7 +75,7 @@ async def _process_request(browser: uc.Browser, request: LinkRequest, start_time
         logger.debug("Calling tab.verify_cf()...")
         await tab.verify_cf()
         logger.info("Cloudflare bypass initiated")
-        
+
         # Wait for redirect/page load after challenge
         logger.debug("Waiting 5 seconds for redirect/page load after challenge...")
         await asyncio.sleep(5)
