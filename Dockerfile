@@ -32,8 +32,7 @@ FROM base AS app
 COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=${HOME}/.cache/uv uv sync
 
-# SeleniumBase does not come with an arm64 chromedriver binary
-RUN cd .venv/lib/*/site-packages/seleniumbase/drivers && rm -f uc_driver && ln -s /usr/bin/chromedriver uc_driver
+# Copy application files
 COPY . .
 
 

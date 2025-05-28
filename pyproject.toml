@@ -9,10 +9,10 @@ description = "API for getting cookies for Cloudflare challenges"
 readme = "README.md"
 dependencies = [
     "fastapi[standard]==0.115.12",
-    "pyautogui==0.9.54",
     "pydantic==2.11.5",
-    "seleniumbase==4.39.0",
+    "nodriver>=0.38.0",
     "uvicorn==0.34.2",
+    "beautifulsoup4>=4.12.0",
 ]
 urls = { repository = "https://github.com/ThePhaseless/Byparr" }
 
@@ -27,7 +27,7 @@ test = [
 dev = ["deptry==0.23.0", "ruff==0.11.11"]
 
 [tool.deptry.per_rule_ignores]
-DEP002 = ["pyautogui"]
+DEP002 = []
 
 [tool.ruff.lint]
 ignore = [
