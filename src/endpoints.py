@@ -37,7 +37,7 @@ async def health_check():
 
 @router.post("/v1")
 async def read_item(
-    request: LinkRequest, 
+    request: LinkRequest,
     proxy: Optional[str] = Header(
         default=PROXY,
         examples=["protocol://username:password@host:port"],
@@ -47,7 +47,7 @@ async def read_item(
     """Handle POST requests."""
     start_time = int(time.time() * 1000)
     request.url = request.url.replace('"', "").strip()
-    
+
     async with get_browser(proxy) as browser:
         return await _process_request(browser, request, start_time)
 
@@ -56,28 +56,28 @@ async def _process_request(browser: uc.Browser, request: LinkRequest, start_time
     """Process the actual request with the browser."""
     tab = await browser.get(request.url)
     logger.debug(f"Got webpage: {request.url}")
-    
+
     # Get page content
     content = await tab.get_content()
     soup = BeautifulSoup(content, 'html.parser')
     title_tag = soup.title
-    
+
     if title_tag and title_tag.string in CHALLENGE_TITLES:
         logger.debug("Challenge detected")
         # Use nodriver's built-in Cloudflare bypass
         await tab.cf_verify()
         logger.info("Cloudflare bypass completed")
-        
+
         # Refresh content after bypass
         content = await tab.get_content()
         soup = BeautifulSoup(content, 'html.parser')
-    
+
     # Check if challenge still exists
     current_title = await tab.title
     if current_title in CHALLENGE_TITLES:
         await save_screenshot(tab)
         raise HTTPException(status_code=500, detail="Could not bypass challenge")
-    
+
     # Get cookies
     cookies = await tab.browser.cookies.get_all()
     formatted_cookies = []
@@ -103,7 +103,7 @@ async def _process_request(browser: uc.Browser, request: LinkRequest, start_time
             http_only = cookie.get('httpOnly', False)
             same_site = cookie.get('sameSite', 'None')
             expires = cookie.get('expires', -1)
-        
+
         formatted_cookie = {
             "name": name,
             "value": value,
@@ -115,17 +115,17 @@ async def _process_request(browser: uc.Browser, request: LinkRequest, start_time
             "size": len(f"{name}={value}".encode()),
             "session": expires == -1,
         }
-        
+
         if expires != -1:
             formatted_cookie["expires"] = expires
-        
+
         formatted_cookies.append(formatted_cookie)
-    
+
     # Get user agent
     user_agent = await tab.evaluate("navigator.userAgent")
     if isinstance(user_agent, tuple):
         user_agent = str(user_agent[0])
-    
+
     return LinkResponse(
         message="Success",
         solution=Solution(

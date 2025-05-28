@@ -21,7 +21,7 @@ async def get_browser(proxy: Optional[str] = None):
     # Use default proxy if not provided
     if proxy is None:
         proxy = PROXY
-        
+
     if proxy and proxy.startswith("socks5://") and "@" in proxy:
         raise HTTPException(
             status_code=codes.BAD_REQUEST,
@@ -30,18 +30,18 @@ async def get_browser(proxy: Optional[str] = None):
 
     # Build browser args only if needed
     browser_args = None
-    
+
     # Add proxy if provided
     if proxy:
         browser_args = [f"--proxy-server={proxy}"]
-    
+
     browser = await uc.start(
         headless=USE_HEADLESS,
         lang="en-US",
         sandbox=False,  # Required when running as root (Docker)
         browser_args=browser_args,
     )
-    
+
     try:
         yield browser
     finally:

@@ -16,25 +16,25 @@ async def test_cloudflare_bypass():
             },
             timeout=70.0
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         # Check the response structure
         assert data["status"] == "ok"
         assert data["message"] == "Success"
         assert "solution" in data
-        
+
         solution = data["solution"]
         assert solution["status"] == 200
         assert solution["url"].startswith("https://nopecha.com/demo/cloudflare")
         assert len(solution["cookies"]) > 0
         assert solution["userAgent"] != ""
-        
+
         # Check if we got past the Cloudflare challenge
         assert "Just a moment..." not in solution["response"]
         assert "Cloudflare" not in solution["response"] or "challenge" not in solution["response"].lower()
-        
+
         # Look for evidence we reached the actual page
         # The nopecha demo page should have some specific content
         assert "nopecha" in solution["response"].lower() or "demo" in solution["response"].lower()
@@ -53,10 +53,10 @@ async def test_regular_page_no_challenge():
             },
             timeout=70.0
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert data["status"] == "ok"
         assert data["solution"]["status"] == 200
         assert "Example Domain" in data["solution"]["response"]
