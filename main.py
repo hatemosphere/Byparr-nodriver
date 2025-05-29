@@ -23,14 +23,14 @@ app.include_router(router=router)
 
 if __name__ == "__main__":
     log_level_str = logging.getLevelName(LOG_LEVEL).lower()
-    
+
     # Configure uvicorn logging
     import sys
     logging.basicConfig(
         level=LOG_LEVEL,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         stream=sys.stdout,
         force=True
     )
-    
+
     uvicorn.run(app, host="0.0.0.0", port=8191, log_level=log_level_str)  # noqa: S104

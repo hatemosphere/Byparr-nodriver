@@ -1,21 +1,19 @@
 import asyncio
 import time
-from http import HTTPStatus
-from typing import Optional
+from typing import Annotated
 
-from bs4 import BeautifulSoup
-from fastapi import APIRouter, HTTPException, Header
-from fastapi.responses import RedirectResponse
 import nodriver as uc
+from bs4 import BeautifulSoup
+from fastapi import APIRouter, Header, HTTPException
+from fastapi.responses import RedirectResponse
 
-from src.consts import CHALLENGE_TITLES
+from src.consts import CHALLENGE_TITLES, PROXY
 from src.models import (
     HealthcheckResponse,
     LinkRequest,
     LinkResponse,
     Solution,
 )
-from src.consts import PROXY
 from src.utils import get_browser, logger, save_screenshot
 
 router = APIRouter()
@@ -39,11 +37,10 @@ async def health_check():
 @router.post("/v1")
 async def read_item(
     request: LinkRequest,
-    proxy: Optional[str] = Header(
-        default=PROXY,
-        examples=["protocol://username:password@host:port"],
+    proxy: Annotated[str | None, Header(
         description="Override default proxy address",
-    )
+        examples=["protocol://username:password@host:port"],
+    )] = PROXY,
 ) -> LinkResponse:
     """Handle POST requests."""
     start_time = int(time.time() * 1000)
@@ -64,7 +61,7 @@ async def _process_request(browser: uc.Browser, request: LinkRequest, start_time
 
     # Get page content
     content = await tab.get_content()
-    soup = BeautifulSoup(content, 'html.parser')
+    soup = BeautifulSoup(content, "html.parser")
     title_tag = soup.title
     initial_title = title_tag.string if title_tag else "No title"
     logger.debug(f"Initial page title: {initial_title}")
@@ -82,7 +79,7 @@ async def _process_request(browser: uc.Browser, request: LinkRequest, start_time
 
         # Refresh content after bypass
         content = await tab.get_content()
-        soup = BeautifulSoup(content, 'html.parser')
+        soup = BeautifulSoup(content, "html.parser")
 
     # Check if challenge still exists
     current_title = await tab.evaluate("document.title")
@@ -97,26 +94,26 @@ async def _process_request(browser: uc.Browser, request: LinkRequest, start_time
     formatted_cookies = []
     for cookie in cookies:
         # Handle cookie as either an object with attributes or a dict
-        if hasattr(cookie, '__dict__'):
+        if hasattr(cookie, "__dict__"):
             # Object with attributes
-            name = getattr(cookie, 'name', '')
-            value = getattr(cookie, 'value', '')
-            domain = getattr(cookie, 'domain', '')
-            path = getattr(cookie, 'path', '/')
-            secure = getattr(cookie, 'secure', False)
-            http_only = getattr(cookie, 'httpOnly', False)
-            same_site = getattr(cookie, 'sameSite', 'None')
-            expires = getattr(cookie, 'expires', -1)
+            name = getattr(cookie, "name", "")
+            value = getattr(cookie, "value", "")
+            domain = getattr(cookie, "domain", "")
+            path = getattr(cookie, "path", "/")
+            secure = getattr(cookie, "secure", False)
+            http_only = getattr(cookie, "httpOnly", False)
+            same_site = getattr(cookie, "sameSite", "None")
+            expires = getattr(cookie, "expires", -1)
         else:
             # Dictionary
-            name = cookie.get('name', '')
-            value = cookie.get('value', '')
-            domain = cookie.get('domain', '')
-            path = cookie.get('path', '/')
-            secure = cookie.get('secure', False)
-            http_only = cookie.get('httpOnly', False)
-            same_site = cookie.get('sameSite', 'None')
-            expires = cookie.get('expires', -1)
+            name = cookie.get("name", "")
+            value = cookie.get("value", "")
+            domain = cookie.get("domain", "")
+            path = cookie.get("path", "/")
+            secure = cookie.get("secure", False)
+            http_only = cookie.get("httpOnly", False)
+            same_site = cookie.get("sameSite", "None")
+            expires = cookie.get("expires", -1)
 
         formatted_cookie = {
             "name": name,

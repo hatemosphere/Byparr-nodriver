@@ -1,7 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
 from time import gmtime, strftime
-from typing import Optional
 
 import nodriver as uc
 from fastapi import HTTPException
@@ -15,18 +14,19 @@ if len(logger.handlers) == 0:
     logger.addHandler(logging.StreamHandler())
 
 # Configure nodriver logging
+# Set nodriver to WARNING level so its INFO messages don't show unless LOG_LEVEL is DEBUG
 nodriver_logger = logging.getLogger("nodriver")
-nodriver_logger.setLevel(LOG_LEVEL)
+nodriver_logger.setLevel(logging.WARNING if LOG_LEVEL > logging.DEBUG else logging.DEBUG)
 if len(nodriver_logger.handlers) == 0:
     handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
     nodriver_logger.addHandler(handler)
 
 # Root logger is now configured in main.py
 
 
 @asynccontextmanager
-async def get_browser(proxy: Optional[str] = None):
+async def get_browser(proxy: str | None = None):
     """Get nodriver browser instance."""
     # Use default proxy if not provided
     if proxy is None:
@@ -67,5 +67,5 @@ async def save_screenshot(tab):
         screenshot_path = f"/tmp/screenshots/{strftime('%Y-%m-%d %H:%M:%S', gmtime())}.png"
         await tab.save_screenshot(screenshot_path)
         logger.info(f"Screenshot saved to {screenshot_path}")
-    except Exception as e:
-        logger.error(f"Failed to save screenshot: {e}")
+    except Exception:
+        logger.exception("Failed to save screenshot")
