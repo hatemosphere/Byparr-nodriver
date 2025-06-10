@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from bs4 import BeautifulSoup
-import nodriver as uc
+import nodriver as nd
 
 from src.consts import CHALLENGE_TITLES
 from src.models import (

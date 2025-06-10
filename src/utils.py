@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Header, HTTPException
 from httpx import codes
-import nodriver as uc
+import nodriver as nd
 
 from src.consts import LOG_LEVEL, PROXY, USE_HEADLESS
 
@@ -59,7 +59,7 @@ async def get_browser_instance(proxy: str | None = None):
     logger.debug(f"Running as user: {os.getuid() if hasattr(os, 'getuid') else 'N/A'}")
 
     try:
-        browser = await uc.start(
+        browser = await nd.start(
             headless=USE_HEADLESS,
             lang="en-US",
             sandbox=False,  # Disable sandbox when running as root in Docker
