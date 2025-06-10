@@ -1,10 +1,12 @@
+import asyncio
 import time
 from http import HTTPStatus
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
-from sbase import BaseCase
+from bs4 import BeautifulSoup
+import nodriver as uc
 
 from src.consts import CHALLENGE_TITLES
 from src.models import (
@@ -13,11 +15,11 @@ from src.models import (
     LinkResponse,
     Solution,
 )
-from src.utils import get_sb, logger, save_screenshot
+from src.utils import get_browser, get_browser_instance, logger, save_screenshot
 
 router = APIRouter()
 
-SeleniumDep = Annotated[BaseCase, Depends(get_sb)]
+ProxyDep = Annotated[str | None, Depends(get_browser)]
 
 
 @router.get("/", include_in_schema=False)
@@ -28,11 +30,11 @@ def read_root():
 
 
 @router.get("/health")
-def health_check(sb: SeleniumDep):
+async def health_check(proxy: ProxyDep):
     """Health check endpoint."""
-    health_check_request = read_item(
+    health_check_request = await read_item(
         LinkRequest.model_construct(url="https://google.com"),
-        sb,
+        proxy,
     )
 
     if health_check_request.solution.status != HTTPStatus.OK:
@@ -41,46 +43,125 @@ def health_check(sb: SeleniumDep):
             detail="Health check failed",
         )
 
-    return HealthcheckResponse(user_agent=sb.get_user_agent())
+    return HealthcheckResponse(user_agent=health_check_request.solution.user_agent)
 
 
 @router.post("/v1")
-def read_item(request: LinkRequest, sb: SeleniumDep) -> LinkResponse:
+async def read_item(request: LinkRequest, proxy: ProxyDep) -> LinkResponse:
     """Handle POST requests."""
     start_time = int(time.time() * 1000)
     request.url = request.url.replace('"', "").strip()
-    sb.uc_open_with_reconnect(request.url)
-    logger.debug(f"Got webpage: {request.url}")
-    source_bs = sb.get_beautiful_soup()
-    title_tag = source_bs.title
-    if title_tag and title_tag.string in CHALLENGE_TITLES:
-        logger.debug("Challenge detected")
-        sb.uc_gui_click_captcha()
-        logger.info("Clicked captcha")
+    logger.debug(f"Request started at {start_time}")
 
-    if sb.get_title() in CHALLENGE_TITLES:
-        save_screenshot(sb)
-        raise HTTPException(status_code=500, detail="Could not bypass challenge")
+    async with get_browser_instance(proxy) as browser:
+        tab = await browser.get(request.url)
+        logger.debug(f"Got webpage: {request.url}")
 
-    cookies = sb.get_cookies()
-    for cookie in cookies:
-        name = cookie["name"]
-        value = cookie["value"]
-        cookie["size"] = len(f"{name}={value}".encode())
+        # Get page content
+        content = await tab.get_content()
+        soup = BeautifulSoup(content, 'html.parser')
+        title_tag = soup.title
 
-        cookie["session"] = False
-        if "expiry" in cookie:
-            cookie["expires"] = cookie["expiry"]
+        logger.debug(f"Page title: '{title_tag.string if title_tag else 'No title'}'")
+        logger.debug(f"Checking against challenge titles: {CHALLENGE_TITLES}")
 
-    return LinkResponse(
-        message="Success",
-        solution=Solution(
-            user_agent=sb.get_user_agent(),
-            url=sb.get_current_url(),
-            status=200,
-            cookies=cookies,
-            headers={},
-            response=str(sb.get_beautiful_soup()),
-        ),
-        start_timestamp=start_time,
-    )
+        if title_tag and title_tag.string and any(challenge_title in title_tag.string.strip() for challenge_title in CHALLENGE_TITLES):
+            logger.debug(f"Challenge detected: '{title_tag.string}'")
+            # Wait a bit before starting to solve the challenge
+            logger.debug("Sleeping 3 seconds before attempting bypass...")
+            await asyncio.sleep(3)
+
+            try:
+                # Try to use nodriver's verify_cf for Cloudflare bypass
+                logger.debug("Attempting verify_cf...")
+                await tab.verify_cf()
+                logger.info("Cloudflare challenge bypassed using verify_cf")
+            except Exception as e:
+                logger.warning(f"verify_cf failed: {e}")
+
+            # Smart wait for page to load after solving
+            logger.debug("Waiting for page to load after challenge...")
+            max_wait = 30  # Maximum 30 seconds
+            check_interval = 1  # Check every second
+            waited = 0
+
+            # Store the challenge title to detect when it changes
+            challenge_title = title_tag.string.strip()
+
+            while waited < max_wait:
+                await asyncio.sleep(check_interval)
+                waited += check_interval
+
+                # Get current page state
+                current_content = await tab.get_content()
+                current_soup = BeautifulSoup(current_content, 'html.parser')
+                current_title = current_soup.title.string if current_soup.title else ""
+                current_url = str(tab.url)
+
+                # Check if title changed from challenge page
+                if current_title != challenge_title and not any(challenge in current_title for challenge in CHALLENGE_TITLES):
+                    logger.debug(f"Title changed from '{challenge_title}' to '{current_title}'")
+                    logger.debug(f"URL: {current_url}")
+
+                    # Wait for the page to stabilize
+                    await tab.wait()
+                    logger.info(f"Page loaded after {waited}s")
+                    break
+
+                logger.debug(f"Still waiting... ({waited}s) - Title: '{current_title}'")
+
+        # Re-check title after bypass attempt
+        content = await tab.get_content()
+        soup = BeautifulSoup(content, 'html.parser')
+        current_title = soup.title.string if soup.title else ""
+
+        logger.debug(f"Title after bypass attempt: '{current_title}'")
+
+        if any(challenge_title in current_title for challenge_title in CHALLENGE_TITLES):
+            elapsed_time = int(time.time() * 1000) - start_time
+            logger.error(f"Failed to bypass challenge after {elapsed_time}ms")
+            await save_screenshot(tab)
+            raise HTTPException(status_code=500, detail="Could not bypass challenge")
+
+        # Get cookies
+        cookies = await tab.browser.cookies.get_all()
+        formatted_cookies = []
+
+        for cookie in cookies:
+            formatted_cookie = {
+                "name": cookie.name,
+                "value": cookie.value,
+                "domain": cookie.domain,
+                "path": cookie.path,
+                "httpOnly": cookie.http_only,
+                "secure": cookie.secure,
+                "sameSite": cookie.same_site.value if cookie.same_site else "None",
+                "size": cookie.size,
+                "session": cookie.session,
+            }
+
+            if cookie.expires is not None:
+                formatted_cookie["expires"] = cookie.expires
+
+            formatted_cookies.append(formatted_cookie)
+
+        # Get user agent
+        user_agent_result = await tab.evaluate("navigator.userAgent")
+        # Extract string from the result tuple
+        user_agent = str(user_agent_result[0]) if isinstance(user_agent_result, tuple) else str(user_agent_result)
+
+        elapsed_time = int(time.time() * 1000) - start_time
+        logger.debug(f"Request completed in {elapsed_time}ms")
+
+        return LinkResponse(
+            message="Success",
+            solution=Solution(
+                user_agent=user_agent,
+                url=str(tab.url),
+                status=200,
+                cookies=formatted_cookies,
+                headers={},
+                response=str(soup),
+            ),
+            start_timestamp=start_time,
+        )

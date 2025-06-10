@@ -11,8 +11,10 @@ dependencies = [
     "fastapi[standard]==0.115.12",
     "pyautogui==0.9.54",
     "pydantic==2.11.5",
-    "seleniumbase==4.39.3",
+    "nodriver==0.46.1",
     "uvicorn==0.34.3",
+    "beautifulsoup4==4.13.4",
+    "opencv-python==4.11.0.86",
 ]
 urls = { repository = "https://github.com/ThePhaseless/Byparr" }
 

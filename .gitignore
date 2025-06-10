@@ -168,4 +168,7 @@ core
 screenshots/
 
 # Downloaded files
-downloaded_files/
+/.reference/
+
+# AI
+/CLAUDE.md
