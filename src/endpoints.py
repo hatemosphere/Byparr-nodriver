@@ -81,7 +81,7 @@ async def read_item(request: LinkRequest, proxy: ProxyDep) -> LinkResponse:
 
             # Smart wait for page to load after solving
             logger.debug("Waiting for page to load after challenge...")
-            max_wait = 30  # Maximum 30 seconds
+            max_wait = 10  # Maximum 10 seconds
             check_interval = 1  # Check every second
             waited = 0
 
