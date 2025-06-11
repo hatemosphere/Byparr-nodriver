@@ -59,13 +59,20 @@ async def read_item(request: LinkRequest, proxy: ProxyDep) -> LinkResponse:
 
         # Get page content
         content = await tab.get_content()
-        soup = BeautifulSoup(content, 'html.parser')
+        soup = BeautifulSoup(content, "html.parser")
         title_tag = soup.title
 
         logger.debug(f"Page title: '{title_tag.string if title_tag else 'No title'}'")
         logger.debug(f"Checking against challenge titles: {CHALLENGE_TITLES}")
 
-        if title_tag and title_tag.string and any(challenge_title in title_tag.string.strip() for challenge_title in CHALLENGE_TITLES):
+        if (
+            title_tag
+            and title_tag.string
+            and any(
+                challenge_title in title_tag.string.strip()
+                for challenge_title in CHALLENGE_TITLES
+            )
+        ):
             logger.debug(f"Challenge detected: '{title_tag.string}'")
             # Wait a bit before starting to solve the challenge
             logger.debug("Sleeping 3 seconds before attempting bypass...")
@@ -94,13 +101,17 @@ async def read_item(request: LinkRequest, proxy: ProxyDep) -> LinkResponse:
 
                 # Get current page state
                 current_content = await tab.get_content()
-                current_soup = BeautifulSoup(current_content, 'html.parser')
+                current_soup = BeautifulSoup(current_content, "html.parser")
                 current_title = current_soup.title.string if current_soup.title else ""
                 current_url = str(tab.url)
 
                 # Check if title changed from challenge page
-                if current_title != challenge_title and not any(challenge in current_title for challenge in CHALLENGE_TITLES):
-                    logger.debug(f"Title changed from '{challenge_title}' to '{current_title}'")
+                if current_title != challenge_title and not any(
+                    challenge in current_title for challenge in CHALLENGE_TITLES
+                ):
+                    logger.debug(
+                        f"Title changed from '{challenge_title}' to '{current_title}'"
+                    )
                     logger.debug(f"URL: {current_url}")
 
                     # Wait for the page to stabilize
@@ -112,12 +123,14 @@ async def read_item(request: LinkRequest, proxy: ProxyDep) -> LinkResponse:
 
         # Re-check title after bypass attempt
         content = await tab.get_content()
-        soup = BeautifulSoup(content, 'html.parser')
+        soup = BeautifulSoup(content, "html.parser")
         current_title = soup.title.string if soup.title else ""
 
         logger.debug(f"Title after bypass attempt: '{current_title}'")
 
-        if any(challenge_title in current_title for challenge_title in CHALLENGE_TITLES):
+        if any(
+            challenge_title in current_title for challenge_title in CHALLENGE_TITLES
+        ):
             elapsed_time = int(time.time() * 1000) - start_time
             logger.error(f"Failed to bypass challenge after {elapsed_time}ms")
             await save_screenshot(tab)
@@ -148,7 +161,11 @@ async def read_item(request: LinkRequest, proxy: ProxyDep) -> LinkResponse:
         # Get user agent
         user_agent_result = await tab.evaluate("navigator.userAgent")
         # Extract string from the result tuple
-        user_agent = str(user_agent_result[0]) if isinstance(user_agent_result, tuple) else str(user_agent_result)
+        user_agent = (
+            str(user_agent_result[0])
+            if isinstance(user_agent_result, tuple)
+            else str(user_agent_result)
+        )
 
         elapsed_time = int(time.time() * 1000) - start_time
         logger.debug(f"Request completed in {elapsed_time}ms")

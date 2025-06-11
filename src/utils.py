@@ -28,7 +28,9 @@ if LOG_LEVEL == logging.DEBUG:
     if not nodriver_logger.handlers:
         handler = logging.StreamHandler()
         handler.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
         handler.setFormatter(formatter)
         nodriver_logger.addHandler(handler)
 
@@ -41,7 +43,9 @@ if LOG_LEVEL == logging.DEBUG:
 @asynccontextmanager
 async def get_browser_instance(proxy: str | None = None):
     """Get nodriver browser instance - internal function."""
-    logger.debug(f"Starting browser instance with proxy={proxy}, headless={USE_HEADLESS}")
+    logger.debug(
+        f"Starting browser instance with proxy={proxy}, headless={USE_HEADLESS}"
+    )
 
     if proxy and proxy.startswith("socks5://") and "@" in proxy:
         raise HTTPException(
@@ -63,7 +67,7 @@ async def get_browser_instance(proxy: str | None = None):
             headless=USE_HEADLESS,
             lang="en-US",
             sandbox=False,  # Disable sandbox when running as root in Docker
-            browser_args=browser_args if browser_args else None
+            browser_args=browser_args if browser_args else None,
         )
         logger.debug("Browser started successfully")
     except Exception as e:
@@ -90,4 +94,6 @@ def get_browser(
 
 async def save_screenshot(tab):
     """Save screenshot on HTTPException."""
-    await tab.save_screenshot(f"screenshots/{strftime('%Y-%m-%d %H:%M:%S', gmtime())}.png")
+    await tab.save_screenshot(
+        f"screenshots/{strftime('%Y-%m-%d %H:%M:%S', gmtime())}.png"
+    )
