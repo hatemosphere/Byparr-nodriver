@@ -3,10 +3,9 @@ import time
 from http import HTTPStatus
 from typing import Annotated
 
+from bs4 import BeautifulSoup
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
-from bs4 import BeautifulSoup
-import nodriver as nd
 
 from src.consts import CHALLENGE_TITLES
 from src.models import (
@@ -58,7 +57,22 @@ async def read_item(request: LinkRequest, proxy: ProxyDep) -> LinkResponse:
         logger.debug(f"Got webpage: {request.url}")
 
         # Get page content
-        content = await tab.get_content()
+        try:
+            content = await tab.get_content()
+        except Exception as e:
+            logger.error(f"Failed to get initial page content: {e}")
+            return LinkResponse(
+                status="error",
+                message=f"Failed to get page content: {e!s}",
+                solution=Solution(
+                    url=request.url,
+                    status=500,
+                    cookies=[],
+                    user_agent="",
+                    response="",
+                ),
+                start_timestamp=start_time,
+            )
         soup = BeautifulSoup(content, "html.parser")
         title_tag = soup.title
 
@@ -99,11 +113,17 @@ async def read_item(request: LinkRequest, proxy: ProxyDep) -> LinkResponse:
                 await asyncio.sleep(check_interval)
                 waited += check_interval
 
-                # Get current page state
-                current_content = await tab.get_content()
-                current_soup = BeautifulSoup(current_content, "html.parser")
-                current_title = current_soup.title.string if current_soup.title else ""
-                current_url = str(tab.url)
+                try:
+                    # Get current page state
+                    current_content = await tab.get_content()
+                    current_soup = BeautifulSoup(current_content, "html.parser")
+                    current_title = (
+                        current_soup.title.string if current_soup.title else ""
+                    )
+                    current_url = str(tab.url)
+                except Exception as e:
+                    logger.debug(f"Failed to get page content: {e}. Retrying...")
+                    continue
 
                 # Check if title changed from challenge page
                 if current_title != challenge_title and not any(
@@ -122,9 +142,14 @@ async def read_item(request: LinkRequest, proxy: ProxyDep) -> LinkResponse:
                 logger.debug(f"Still waiting... ({waited}s) - Title: '{current_title}'")
 
         # Re-check title after bypass attempt
-        content = await tab.get_content()
-        soup = BeautifulSoup(content, "html.parser")
-        current_title = soup.title.string if soup.title else ""
+        try:
+            content = await tab.get_content()
+            soup = BeautifulSoup(content, "html.parser")
+            current_title = soup.title.string if soup.title else ""
+        except Exception as e:
+            logger.warning(f"Failed to get final page content: {e}")
+            # Use the last known good content if available
+            current_title = ""
 
         logger.debug(f"Title after bypass attempt: '{current_title}'")
 
